@@ -36,6 +36,9 @@ interface AppContextValue {
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
   markServed: (orderId: string) => Promise<void>;
 
+  // Order item cancellation (customer, only while status === 'ordered')
+  cancelOrderItem: (orderId: string, orderItemId: string) => Promise<void>;
+
   // Menu actions
   toggleMenuAvailability: (itemId: string, current: boolean) => Promise<void>;
   addMenuItem: (item: NewMenuItem) => Promise<void>;
@@ -210,6 +213,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fetchAll();
   }, [auth, fetchAll]);
 
+  const cancelOrderItem = useCallback(async (orderId: string, orderItemId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order || order.status !== 'ordered') return;
+    const remainingItems = (order.order_items ?? []).filter(oi => oi.id !== orderItemId);
+    await supabase.from('order_items').delete().eq('id', orderItemId);
+    if (remainingItems.length === 0) {
+      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId);
+    }
+    await fetchAll();
+  }, [orders, fetchAll]);
+
   const toggleMenuAvailability = useCallback(async (itemId: string, current: boolean) => {
     await supabase.from('menu_items').update({ is_available: !current }).eq('id', itemId);
     await fetchAll();
@@ -315,7 +329,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activeTableId, setActiveTableId,
       menuItems, orders, waiterCalls, waiters, roleCredentials,
       cart, addToCart, removeFromCart, updateCartQty, clearCart,
-      placeOrder, updateOrderStatus, markServed,
+      placeOrder, updateOrderStatus, markServed, cancelOrderItem,
       toggleMenuAvailability, addMenuItem, updateMenuItem, deleteMenuItem,
       callWaiter, acknowledgeWaiterCall, resolveWaiterCall,
       updateRolePassword,

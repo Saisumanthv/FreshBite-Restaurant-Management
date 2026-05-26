@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, BellRing, CheckCircle, Clock, ChefHat, Utensils, AlertCircle, Plus, XCircle } from 'lucide-react';
+import { ShoppingCart, BellRing, CheckCircle, Clock, ChefHat, Utensils, AlertCircle, Plus, XCircle, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { OrderStatus } from '../lib/database.types';
 
@@ -85,9 +85,12 @@ export function CustomerView() {
   const {
     activeTableId, menuItems, orders, cart,
     addToCart, setCartOpen, callWaiter, resolveWaiterCall, waiterCalls,
+    cancelOrderItem,
   } = useApp();
   const [callingCaptain, setCallingCaptain] = useState(false);
   const [showOnTheWay, setShowOnTheWay] = useState(false);
+  const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState<{ orderId: string; orderItemId: string; name: string } | null>(null);
   const resolveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -217,6 +220,52 @@ export function CustomerView() {
           </div>
         )}
 
+        {/* Cancel confirmation modal */}
+        {confirmCancel && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <XCircle size={20} className="text-red-500" />
+                </div>
+                <div>
+                  <p className="font-black text-gray-900">Cancel this item?</p>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Remove <span className="font-bold text-gray-700">{confirmCancel.name}</span> from your order?
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2 font-medium">
+                This can only be done before the chef starts cooking.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmCancel(null)}
+                  className="flex-1 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-bold text-sm transition-all"
+                >
+                  Keep it
+                </button>
+                <button
+                  disabled={cancellingItemId === confirmCancel.orderItemId}
+                  onClick={async () => {
+                    setCancellingItemId(confirmCancel.orderItemId);
+                    await cancelOrderItem(confirmCancel.orderId, confirmCancel.orderItemId);
+                    setCancellingItemId(null);
+                    setConfirmCancel(null);
+                  }}
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+                >
+                  {cancellingItemId === confirmCancel.orderItemId ? (
+                    <span className="flex items-center gap-1.5"><Clock size={14} className="animate-spin" /> Cancelling…</span>
+                  ) : (
+                    <span className="flex items-center gap-1.5"><X size={14} /> Yes, cancel</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Active Orders */}
         {tableOrders.length > 0 && (
           <section>
@@ -228,25 +277,37 @@ export function CustomerView() {
             <div className="space-y-3">
               {tableOrders.map(order => (
                 <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-amber-100">
-                  <div className="flex items-start justify-between mb-1">
-                    <div>
-                      <p className="text-xs text-gray-400">
-                        Ordered at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                      <div className="flex flex-wrap gap-x-3 mt-1">
-                        {order.order_items?.map(oi => {
-                          const available = oi.menu_items?.is_available;
-                          return (
-                            <span key={oi.id} className={`text-sm font-semibold flex items-center gap-1 ${available === false ? 'text-red-500 line-through' : 'text-gray-800'}`}>
-                              {oi.menu_items?.name} ×{oi.quantity}
-                              {available === false && (
-                                <span className="text-xs font-bold no-underline text-red-500">(unavailable)</span>
-                              )}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  <p className="text-xs text-gray-400 mb-2">
+                    Ordered at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {order.status === 'ordered' && (
+                      <span className="ml-2 text-amber-600 font-semibold">· You can still cancel items</span>
+                    )}
+                  </p>
+                  <div className="space-y-1.5 mb-3">
+                    {order.order_items?.map(oi => {
+                      const available = oi.menu_items?.is_available;
+                      const canCancel = order.status === 'ordered';
+                      return (
+                        <div key={oi.id} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl ${canCancel ? 'bg-gray-50 hover:bg-red-50 group transition-colors' : ''}`}>
+                          <span className={`text-sm font-semibold flex items-center gap-1.5 ${available === false ? 'text-red-400 line-through' : 'text-gray-800'}`}>
+                            {oi.menu_items?.name}
+                            <span className={`font-black text-xs px-1.5 py-0.5 rounded-lg ${canCancel ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>×{oi.quantity}</span>
+                            {available === false && (
+                              <span className="text-xs font-bold no-underline text-red-400">(unavailable)</span>
+                            )}
+                          </span>
+                          {canCancel && (
+                            <button
+                              onClick={() => setConfirmCancel({ orderId: order.id, orderItemId: oi.id, name: oi.menu_items?.name ?? 'item' })}
+                              className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                              title="Cancel this item"
+                            >
+                              <X size={12} /> Cancel
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <DetailedStatusTracker status={order.status} />
                 </div>
