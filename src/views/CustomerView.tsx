@@ -85,19 +85,18 @@ export function CustomerView() {
   const {
     activeTableId, menuItems, orders, cart,
     addToCart, setCartOpen, callWaiter, resolveWaiterCall, waiterCalls,
-    cancelOrderItem,
+    cancelOrderItem, deleteCancelledOrder,
   } = useApp();
   const [callingCaptain, setCallingCaptain] = useState(false);
   const [showOnTheWay, setShowOnTheWay] = useState(false);
   const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<{ orderId: string; orderItemId: string; name: string } | null>(null);
-  const [dismissedOrderIds, setDismissedOrderIds] = useState<Set<string>>(new Set());
   const resolveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
-  const tableOrders = orders.filter(o => o.table_id === activeTableId && o.status !== 'served' && !dismissedOrderIds.has(o.id));
+  const tableOrders = orders.filter(o => o.table_id === activeTableId && o.status !== 'served' && o.status !== 'cancelled');
   const activeCall = waiterCalls.find(c => c.table_id === activeTableId && !c.is_resolved);
   const categories = [...new Set(menuItems.map(m => m.category))];
   const allCategories = ['All', ...categories];
@@ -287,7 +286,7 @@ export function CustomerView() {
                     </p>
                     {order.status === 'cancelled' && (
                       <button
-                        onClick={() => setDismissedOrderIds(prev => new Set([...prev, order.id]))}
+                        onClick={() => deleteCancelledOrder(order.id)}
                         className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:text-red-600 hover:bg-red-100 transition-all ml-2"
                         title="Dismiss"
                       >

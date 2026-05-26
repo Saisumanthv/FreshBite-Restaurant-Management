@@ -38,6 +38,7 @@ interface AppContextValue {
 
   // Order item cancellation (customer, only while status === 'ordered')
   cancelOrderItem: (orderId: string, orderItemId: string) => Promise<void>;
+  deleteCancelledOrder: (orderId: string) => Promise<void>;
 
   // Menu actions
   toggleMenuAvailability: (itemId: string, current: boolean) => Promise<void>;
@@ -224,6 +225,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fetchAll();
   }, [orders, fetchAll]);
 
+  const deleteCancelledOrder = useCallback(async (orderId: string) => {
+    await supabase.from('order_items').delete().eq('order_id', orderId);
+    await supabase.from('orders').delete().eq('id', orderId);
+    await fetchAll();
+  }, [fetchAll]);
+
   const toggleMenuAvailability = useCallback(async (itemId: string, current: boolean) => {
     await supabase.from('menu_items').update({ is_available: !current }).eq('id', itemId);
     await fetchAll();
@@ -329,7 +336,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activeTableId, setActiveTableId,
       menuItems, orders, waiterCalls, waiters, roleCredentials,
       cart, addToCart, removeFromCart, updateCartQty, clearCart,
-      placeOrder, updateOrderStatus, markServed, cancelOrderItem,
+      placeOrder, updateOrderStatus, markServed, cancelOrderItem, deleteCancelledOrder,
       toggleMenuAvailability, addMenuItem, updateMenuItem, deleteMenuItem,
       callWaiter, acknowledgeWaiterCall, resolveWaiterCall,
       updateRolePassword,
