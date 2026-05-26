@@ -91,12 +91,13 @@ export function CustomerView() {
   const [showOnTheWay, setShowOnTheWay] = useState(false);
   const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<{ orderId: string; orderItemId: string; name: string } | null>(null);
+  const [dismissedOrderIds, setDismissedOrderIds] = useState<Set<string>>(new Set());
   const resolveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
-  const tableOrders = orders.filter(o => o.table_id === activeTableId && o.status !== 'served');
+  const tableOrders = orders.filter(o => o.table_id === activeTableId && o.status !== 'served' && !dismissedOrderIds.has(o.id));
   const activeCall = waiterCalls.find(c => c.table_id === activeTableId && !c.is_resolved);
   const categories = [...new Set(menuItems.map(m => m.category))];
   const allCategories = ['All', ...categories];
@@ -276,13 +277,24 @@ export function CustomerView() {
             </h2>
             <div className="space-y-3">
               {tableOrders.map(order => (
-                <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-amber-100">
-                  <p className="text-xs text-gray-400 mb-2">
-                    Ordered at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    {order.status === 'ordered' && (
-                      <span className="ml-2 text-amber-600 font-semibold">· You can still cancel items</span>
+                <div key={order.id} className={`bg-white rounded-2xl p-4 shadow-sm border ${order.status === 'cancelled' ? 'border-red-200 bg-red-50' : 'border-amber-100'}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs text-gray-400">
+                      Ordered at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {order.status === 'ordered' && (
+                        <span className="ml-2 text-amber-600 font-semibold">· You can still cancel items</span>
+                      )}
+                    </p>
+                    {order.status === 'cancelled' && (
+                      <button
+                        onClick={() => setDismissedOrderIds(prev => new Set([...prev, order.id]))}
+                        className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:text-red-600 hover:bg-red-100 transition-all ml-2"
+                        title="Dismiss"
+                      >
+                        <X size={15} />
+                      </button>
                     )}
-                  </p>
+                  </div>
                   <div className="space-y-1.5 mb-3">
                     {order.order_items?.map(oi => {
                       const available = oi.menu_items?.is_available;
