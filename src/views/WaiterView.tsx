@@ -1,10 +1,12 @@
-import { Bell, CheckCircle, Utensils, Clock, BellOff, Navigation, LogOut } from 'lucide-react';
+import { Bell, CheckCircle, Utensils, Clock, BellOff, Navigation, LogOut, ClipboardList, ChefHat } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export function WaiterView() {
   const { orders, waiterCalls, markServed, acknowledgeWaiterCall, auth, logout } = useApp();
 
   const waiter = auth?.waiter;
+  const newOrders = orders.filter(o => o.status === 'ordered');
+  const cookingOrders = orders.filter(o => o.status === 'cooking');
   const readyOrders = orders.filter(o => o.status === 'ready_to_serve');
   const servedByMe = orders.filter(o => o.status === 'served');
   const activeOrders = orders.filter(o => ['ordered', 'cooking', 'ready_to_serve'].includes(o.status));
@@ -30,6 +32,14 @@ export function WaiterView() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex gap-2 text-center">
+              <div className="px-3 py-1.5 bg-blue-50 rounded-xl">
+                <p className="text-lg font-black text-blue-600">{newOrders.length}</p>
+                <p className="text-xs text-gray-500">New</p>
+              </div>
+              <div className="px-3 py-1.5 bg-amber-50 rounded-xl">
+                <p className="text-lg font-black text-amber-600">{cookingOrders.length}</p>
+                <p className="text-xs text-gray-500">Cooking</p>
+              </div>
               <div className="px-3 py-1.5 bg-teal-50 rounded-xl">
                 <p className="text-lg font-black text-teal-600">{readyOrders.length}</p>
                 <p className="text-xs text-gray-500">Ready</p>
@@ -87,6 +97,85 @@ export function WaiterView() {
           <div className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 px-5 py-4 text-gray-400 text-sm">
             <BellOff size={18} strokeWidth={1.5} /> No assistance requests right now
           </div>
+        )}
+
+        {/* Incoming Orders — newly placed, not yet cooking */}
+        <section>
+          <h2 className="text-base font-black text-gray-800 mb-3 flex items-center gap-2">
+            <ClipboardList size={16} className="text-blue-500" />
+            Incoming Orders
+            {newOrders.length > 0 && (
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-black rounded-full animate-pulse">{newOrders.length}</span>
+            )}
+          </h2>
+          {newOrders.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4 text-gray-400 text-sm flex items-center gap-3">
+              <ClipboardList size={18} strokeWidth={1.5} /> No new orders right now
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {newOrders.map(order => (
+                <div key={order.id} className="bg-white rounded-2xl border-2 border-blue-200 shadow-sm p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="font-black text-gray-900 text-xl">Table {order.table_id}</span>
+                    </div>
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Clock size={11} />
+                      {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 mb-3">
+                    {order.order_items?.map(oi => (
+                      <div key={oi.id} className="flex justify-between items-center text-sm">
+                        <span className="text-gray-700 font-medium">{oi.menu_items?.name}</span>
+                        <span className="font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg text-xs">×{oi.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-blue-50 text-xs text-blue-500 font-semibold">
+                    <ChefHat size={13} /> Being sent to kitchen
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* In Kitchen — cooking */}
+        {cookingOrders.length > 0 && (
+          <section>
+            <h2 className="text-base font-black text-gray-800 mb-3 flex items-center gap-2">
+              <ChefHat size={16} className="text-amber-500" />
+              In Kitchen
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-black rounded-full">{cookingOrders.length}</span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {cookingOrders.map(order => (
+                <div key={order.id} className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="font-black text-gray-900 text-xl">Table {order.table_id}</span>
+                    </div>
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Clock size={11} />
+                      {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {order.order_items?.map(oi => (
+                      <div key={oi.id} className="flex justify-between items-center text-sm">
+                        <span className="text-gray-700 font-medium">{oi.menu_items?.name}</span>
+                        <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg text-xs">×{oi.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Ready to Serve */}
