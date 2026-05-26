@@ -10,7 +10,55 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   ordered: 'bg-blue-100 text-blue-700', cooking: 'bg-amber-100 text-amber-700',
   ready_to_serve: 'bg-green-100 text-green-700', served: 'bg-gray-100 text-gray-500', cancelled: 'bg-red-100 text-red-500',
 };
-const CATEGORIES = ['Starters', 'Mains', 'Sides', 'Desserts', 'Drinks', 'Specials'];
+const DEFAULT_CATEGORIES = ['Starters', 'Mains', 'Sides', 'Desserts', 'Drinks', 'Specials'];
+
+function CategorySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { menuItems } = useApp();
+  const [addingNew, setAddingNew] = useState(false);
+  const [newCat, setNewCat] = useState('');
+
+  const existingCats = [...new Set([...DEFAULT_CATEGORIES, ...menuItems.map(m => m.category)])];
+
+  function confirmNew() {
+    const trimmed = newCat.trim();
+    if (!trimmed) return;
+    onChange(trimmed);
+    setAddingNew(false);
+    setNewCat('');
+  }
+
+  if (addingNew) {
+    return (
+      <div className="flex gap-2">
+        <input
+          autoFocus
+          type="text"
+          value={newCat}
+          onChange={e => setNewCat(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmNew(); } if (e.key === 'Escape') { setAddingNew(false); setNewCat(''); } }}
+          placeholder="New category name"
+          className="flex-1 px-4 py-3 rounded-xl border border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm font-medium transition-all"
+        />
+        <button type="button" onClick={confirmNew} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm transition-all">Add</button>
+        <button type="button" onClick={() => { setAddingNew(false); setNewCat(''); }} className="px-3 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm transition-all"><X size={15} /></button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2">
+      <select value={value} onChange={e => onChange(e.target.value)}
+        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm font-medium transition-all bg-white">
+        {existingCats.map(c => <option key={c} value={c}>{c}</option>)}
+        {!existingCats.includes(value) && <option value={value}>{value}</option>}
+      </select>
+      <button type="button" onClick={() => setAddingNew(true)}
+        className="flex items-center gap-1.5 px-3 py-2.5 border border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 text-amber-600 rounded-xl text-xs font-bold transition-all whitespace-nowrap">
+        <Plus size={13} /> New
+      </button>
+    </div>
+  );
+}
 
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
   return (
@@ -69,10 +117,7 @@ function AddMenuItemModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1.5">Category *</label>
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm font-medium transition-all bg-white">
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CategorySelect value={form.category} onChange={v => setForm(f => ({ ...f, category: v }))} />
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1.5">
@@ -182,10 +227,7 @@ function EditMenuItemModal({ item, onClose }: { item: MenuItem; onClose: () => v
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1.5">Category *</label>
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm font-medium transition-all bg-white">
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CategorySelect value={form.category} onChange={v => setForm(f => ({ ...f, category: v }))} />
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1.5">

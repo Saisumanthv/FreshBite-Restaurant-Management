@@ -90,10 +90,15 @@ export function CustomerView() {
   const [showOnTheWay, setShowOnTheWay] = useState(false);
   const resolveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
   const tableOrders = orders.filter(o => o.table_id === activeTableId && o.status !== 'served');
   const activeCall = waiterCalls.find(c => c.table_id === activeTableId && !c.is_resolved);
   const categories = [...new Set(menuItems.map(m => m.category))];
+  const allCategories = ['All', ...categories];
+  const visibleMenuItems = activeCategory === 'All' ? menuItems : menuItems.filter(m => m.category === activeCategory);
+  const visibleCategories = activeCategory === 'All' ? categories : [activeCategory];
 
   // When captain acknowledges the call, show "on the way" banner for 5s then resolve
   useEffect(() => {
@@ -156,6 +161,29 @@ export function CustomerView() {
           </div>
         </div>
       </div>
+
+      {/* Category filter bar */}
+      {menuItems.length > 0 && (
+        <div className="sticky top-[73px] z-10 bg-white/90 backdrop-blur-md border-b border-amber-100">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6">
+            <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
+              {allCategories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
+                    activeCategory === cat
+                      ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-md shadow-amber-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-amber-50 hover:text-amber-700'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
         {/* Phase 1: Captain called but not yet acknowledged — persists until captain attends */}
@@ -228,13 +256,13 @@ export function CustomerView() {
         )}
 
         {/* Menu */}
-        {categories.map(cat => (
+        {visibleCategories.map(cat => (
           <section key={cat}>
             <h2 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
               <CategoryBadge cat={cat} />
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {menuItems.filter(m => m.category === cat).map(item => (
+              {visibleMenuItems.filter(m => m.category === cat).map(item => (
                 <div
                   key={item.id}
                   className={`group rounded-2xl overflow-hidden shadow-sm border transition-all duration-300 ${
