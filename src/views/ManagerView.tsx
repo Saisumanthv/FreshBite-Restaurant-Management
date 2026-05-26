@@ -12,19 +12,36 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
 };
 const DEFAULT_CATEGORIES = ['Starters', 'Mains', 'Sides', 'Desserts', 'Drinks', 'Specials'];
 
+const CUSTOM_CATS_KEY = 'flashbite_custom_categories';
+
+function loadCustomCats(): string[] {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_CATS_KEY) ?? '[]'); }
+  catch { return []; }
+}
+function saveCustomCats(cats: string[]) {
+  localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify(cats));
+}
+
 function CategorySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const { menuItems, updateMenuItem } = useApp();
+  const [customCats, setCustomCats] = useState<string[]>(loadCustomCats);
   const [addingNew, setAddingNew] = useState(false);
   const [newCat, setNewCat] = useState('');
   const [deletingCat, setDeletingCat] = useState<string | null>(null);
   const [reassignTo, setReassignTo] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const existingCats = [...new Set([...DEFAULT_CATEGORIES, ...menuItems.map(m => m.category)])];
+  // Merge: defaults + custom (persisted) + any categories already on menu items
+  const existingCats = [...new Set([...DEFAULT_CATEGORIES, ...customCats, ...menuItems.map(m => m.category)])];
 
   function confirmNew() {
     const trimmed = newCat.trim();
     if (!trimmed) return;
+    if (!existingCats.includes(trimmed)) {
+      const updated = [...customCats, trimmed];
+      setCustomCats(updated);
+      saveCustomCats(updated);
+    }
     onChange(trimmed);
     setAddingNew(false);
     setNewCat('');
@@ -44,6 +61,9 @@ function CategorySelect({ value, onChange }: { value: string; onChange: (v: stri
       affected.map(m => updateMenuItem(m.id, { ...m, ingredients: [...m.ingredients], category: reassignTo }))
     );
     if (value === deletingCat) onChange(reassignTo);
+    const updated = customCats.filter(c => c !== deletingCat);
+    setCustomCats(updated);
+    saveCustomCats(updated);
     setDeletingCat(null);
     setDeleting(false);
   }
