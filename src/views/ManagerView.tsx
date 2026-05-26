@@ -576,7 +576,7 @@ export function ManagerView() {
                 <span className="bg-gradient-to-r from-yellow-400 to-blue-500 bg-clip-text text-transparent">FreshBite</span>
                 {' '}<span className="text-gray-500 font-normal text-sm">· Manager</span>
               </h1>
-              <p className="text-xs text-gray-500 flex items-center gap-1"><RefreshCw size={11} className="animate-spin" /> Live · 5s refresh</p>
+              {/* <p className="text-xs text-gray-500 flex items-center gap-1"><RefreshCw size={11} className="animate-spin" /> Live · 5s refresh</p> */}
             </div>
           </div>
 
