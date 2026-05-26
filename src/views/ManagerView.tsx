@@ -13,9 +13,12 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
 const DEFAULT_CATEGORIES = ['Starters', 'Mains', 'Sides', 'Desserts', 'Drinks', 'Specials'];
 
 function CategorySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const { menuItems } = useApp();
+  const { menuItems, updateMenuItem } = useApp();
   const [addingNew, setAddingNew] = useState(false);
   const [newCat, setNewCat] = useState('');
+  const [deletingCat, setDeletingCat] = useState<string | null>(null);
+  const [reassignTo, setReassignTo] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const existingCats = [...new Set([...DEFAULT_CATEGORIES, ...menuItems.map(m => m.category)])];
 
@@ -25,6 +28,67 @@ function CategorySelect({ value, onChange }: { value: string; onChange: (v: stri
     onChange(trimmed);
     setAddingNew(false);
     setNewCat('');
+  }
+
+  function startDelete(cat: string) {
+    const others = existingCats.filter(c => c !== cat);
+    setReassignTo(others[0] ?? '');
+    setDeletingCat(cat);
+  }
+
+  async function confirmDelete() {
+    if (!deletingCat) return;
+    setDeleting(true);
+    const affected = menuItems.filter(m => m.category === deletingCat);
+    await Promise.all(
+      affected.map(m => updateMenuItem(m.id, { ...m, ingredients: [...m.ingredients], category: reassignTo }))
+    );
+    if (value === deletingCat) onChange(reassignTo);
+    setDeletingCat(null);
+    setDeleting(false);
+  }
+
+  // Delete confirmation overlay
+  if (deletingCat) {
+    const affected = menuItems.filter(m => m.category === deletingCat);
+    const othersForReassign = existingCats.filter(c => c !== deletingCat);
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
+        <div className="flex items-start gap-2">
+          <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-red-700">Delete "{deletingCat}"?</p>
+            {affected.length > 0 ? (
+              <p className="text-xs text-red-600 mt-0.5">
+                {affected.length} item{affected.length > 1 ? 's' : ''} will be moved to another category.
+              </p>
+            ) : (
+              <p className="text-xs text-red-600 mt-0.5">No items in this category.</p>
+            )}
+          </div>
+        </div>
+        {affected.length > 0 && (
+          <div>
+            <label className="block text-xs font-bold text-red-700 mb-1">Reassign items to</label>
+            <select value={reassignTo} onChange={e => setReassignTo(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-red-200 bg-white text-sm font-medium outline-none focus:border-red-400">
+              {othersForReassign.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setDeletingCat(null)}
+            className="flex-1 py-2 border border-gray-200 hover:bg-white text-gray-600 rounded-xl text-xs font-bold transition-all">
+            Cancel
+          </button>
+          <button type="button" onClick={confirmDelete} disabled={deleting || (affected.length > 0 && !reassignTo)}
+            className="flex-1 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+            {deleting ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (addingNew) {
@@ -46,16 +110,23 @@ function CategorySelect({ value, onChange }: { value: string; onChange: (v: stri
   }
 
   return (
-    <div className="flex gap-2">
-      <select value={value} onChange={e => onChange(e.target.value)}
-        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm font-medium transition-all bg-white">
-        {existingCats.map(c => <option key={c} value={c}>{c}</option>)}
-        {!existingCats.includes(value) && <option value={value}>{value}</option>}
-      </select>
-      <button type="button" onClick={() => setAddingNew(true)}
-        className="flex items-center gap-1.5 px-3 py-2.5 border border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 text-amber-600 rounded-xl text-xs font-bold transition-all whitespace-nowrap">
-        <Plus size={13} /> New
-      </button>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <select value={value} onChange={e => onChange(e.target.value)}
+          className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm font-medium transition-all bg-white">
+          {existingCats.map(c => <option key={c} value={c}>{c}</option>)}
+          {!existingCats.includes(value) && <option value={value}>{value}</option>}
+        </select>
+        <button type="button" onClick={() => setAddingNew(true)}
+          className="flex items-center gap-1.5 px-3 py-2.5 border border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 text-amber-600 rounded-xl text-xs font-bold transition-all whitespace-nowrap">
+          <Plus size={13} /> New
+        </button>
+        <button type="button" onClick={() => startDelete(value)}
+          title={`Delete "${value}" category`}
+          className="flex items-center justify-center px-3 py-2.5 border border-dashed border-red-200 hover:border-red-400 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-xl text-xs font-bold transition-all">
+          <Trash2 size={13} />
+        </button>
+      </div>
     </div>
   );
 }
